@@ -44,6 +44,19 @@ int s2 = 6;
 int s3 = 7;
 
 int currentTemp;  // this holds the temp gotten in the thermocouple.readFahrenheit()
+int thermoCount = 4;  //put the number of thermo couples we are reading.  Lower this number for testing just a couple.
+
+int topBack = 0;
+int topLeft = 0;
+int topMiddle = 0;
+int topRight = 0;
+int topDeepMiddle = 0;
+int topDeepRight = 0;
+int surface = 0;
+int baseDeep = 0;
+int baseShallow = 0;
+int attic = 0;
+int flue = 0;
 
 void setup() {
   /*
@@ -121,6 +134,12 @@ void setup() {
 
 
 void loop() {
+  /*
+  get temps
+  fill variables with ttemps
+  fill out the display
+  then listen for client connection
+  */
   // listen for incoming clients
   WiFiClient client = server.available();
   if (client) {
@@ -139,7 +158,7 @@ void loop() {
           client.println("HTTP/1.1 200 OK");
           client.println("Content-Type: text/html");
           client.println("Connection: close");  // the connection will be closed after completion of the response
-          client.println("Refresh: 5");  // refresh the page automatically every 5 sec
+          client.println("Refresh: 30");  // refresh the page automatically every 5 sec
           client.println();
           client.println("<!DOCTYPE HTML>");
           client.println("<html>");
@@ -172,7 +191,96 @@ void loop() {
     Serial.println("client disconnected");
   }
 }
+void getTemp(){
+  //Loop through and read all 16 values
+  for(int i = 0; i < thermoCount; i ++){
+    Serial.print("Channel ");
+    Serial.println(i);
+    setMux(i);
+    delay(1000);  // Allows the multiplexer to settle for a millisecond before reading.
+     Serial.print("Fahrenheit = ");
+     //Serial.println(thermocouple.readInternal());
+     
+     currentTemp = round(thermocouple.readFahrenheit());
+     Serial.println(currentTemp);
+    double c = thermocouple.readCelsius();
+    if (isnan(c)) {
+     Serial.println("Thermocouple fault(s) detected!");
+     uint8_t e = thermocouple.readError();
+     if (e & MAX31855_FAULT_OPEN) Serial.println("FAULT: Thermocouple is open - no connections.");
+     if (e & MAX31855_FAULT_SHORT_GND) Serial.println("FAULT: Thermocouple is short-circuited to GND.");
+     if (e & MAX31855_FAULT_SHORT_VCC) Serial.println("FAULT: Thermocouple is short-circuited to VCC.");
+    } else {
+     Serial.print("C = ");
+     Serial.println(c);
+     
+     if (i == 0){
+       Serial.println("inside i equals 0");
+     lcd.setCursor(3,0);
+     lcd.print("Dome Top");
+     lcd.setCursor(12,0);
+     lcd.print("     ");
+     lcd.setCursor(12,0);
+     lcd.print(currentTemp);
+    } else if (i == 1){
+      Serial.println("inside i equals 1");
+     lcd.setCursor(1,1);
+     lcd.print("Dome Middle");
+     lcd.setCursor(13,1);
+     lcd.print("     ");
+    lcd.setCursor(13,1);
+     lcd.print(currentTemp);
+    } else if (i == 2){
+     Serial.println("inside i equals 2");
+     lcd.setCursor(1,2);
+     lcd.print("Dome Front");
+     lcd.setCursor(13,2);
+     lcd.print("     ");
+     lcd.setCursor(13,2);
+     lcd.print(currentTemp);
+    } else if (i == 3){
+      Serial.println("inside display to second LCD");
+      lcd2.setCursor(1, 1);
+      lcd2.print("hello");
+    }
+   
+   }
 
+    //delay(1000);
+  }
+
+}
+
+float setMux(int channel){
+ // Serial.println("Inside Read MUX");
+  int controlPin[] = {s0, s1, s2, s3};
+
+  int muxChannel[16][4]={
+    {0,0,0,0}, //channel 0
+    {1,0,0,0}, //channel 1
+    {0,1,0,0}, //channel 2
+    {1,1,0,0}, //channel 3
+    {0,0,1,0}, //channel 4
+    {1,0,1,0}, //channel 5
+    {0,1,1,0}, //channel 6
+    {1,1,1,0}, //channel 7
+    {0,0,0,1}, //channel 8
+    {1,0,0,1}, //channel 9
+    {0,1,0,1}, //channel 10
+    {1,1,0,1}, //channel 11
+    {0,0,1,1}, //channel 12
+    {1,0,1,1}, //channel 13
+    {0,1,1,1}, //channel 14
+    {1,1,1,1}  //channel 15
+  };
+
+  //loop through the 4 sig
+  for(int i = 0; i < 4; i ++){
+    digitalWrite(controlPin[i], muxChannel[channel][i]);
+    //Serial.println("inside the channel change");
+    //delay(1000);
+  }
+}
 
 void printWifiStatus() {
   // print the SSID of the network you're attached to:
