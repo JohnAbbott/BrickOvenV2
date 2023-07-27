@@ -6,7 +6,7 @@
  * Version 1.0 -- Nov 2022
  * Version 1.1 -- May 2023 - Addition of Blynk code
  * Version 2.0 -- July 2023 - Abandon Blynk, just use a web server instead.
- * 
+ * Version 2.1 -- July (late) 2023 -- Added a data logging card
  */
 
 
@@ -15,6 +15,8 @@
 #include <Wire.h>
 #include <LiquidCrystal_I2C.h>
 #include "Adafruit_MAX31855.h"
+#include "Arduino_LED_Matrix.h"
+#include "frames.h"
 
 #include "pussy_secrets.h" 
 ///////Use the info in tab/arduino_secrets.h to login to the network Pussy_Galore
@@ -25,6 +27,8 @@ int keyIndex = 0;
 int status = WL_IDLE_STATUS;
 
 WiFiServer server(80);
+
+ArduinoLEDMatrix matrix;
 
 #define MAXDO   8
 #define MAXCS   10
@@ -43,17 +47,18 @@ int s1 = 5;
 int s2 = 6;
 int s3 = 7;
 
-int currentTemp;  // this holds the temp gotten in the thermocouple.readFahrenheit()
+//int currentTemp;  // this holds the temp gotten in the thermocouple.readFahrenheit()
 int thermoCount = 4;  //put the number of thermo couples we are reading.  Lower this number for testing just a couple.
 
-int topBack = 0;
-int topLeft = 0;
-int topMiddle = 0;
-int topRight = 0;
+int topBack;
+int topLeft;
+int topMiddle;
+int topRight;
 int topDeepMiddle = 0;
 int topDeepRight = 0;
 int surface = 0;
 int baseDeep = 0;
+int baseDeepLeft = 0;
 int baseShallow = 0;
 int attic = 0;
 int flue = 0;
@@ -65,21 +70,25 @@ void setup() {
    */
    //Initialize serial and wait for port to open:
    Serial.begin(9600);
+   matrix.begin();
+
    Serial.print("Initializing sensor...");
    while (!Serial) {
     ; // wait for serial port to connect. Needed for native USB port only
    }
-
+   
    // check for the WiFi module:
    if (WiFi.status() == WL_NO_MODULE) {
      Serial.println("Communication with WiFi module failed!");
      // don't continue
+     matrix.loadFrame(danger);
      while (true);
    }
 
    String fv = WiFi.firmwareVersion();
    if (fv < WIFI_FIRMWARE_LATEST_VERSION) {
      Serial.println("Please upgrade the firmware");
+     matrix.loadFrame(danger);
    }
 
    // attempt to connect to WiFi network:
@@ -88,6 +97,7 @@ void setup() {
      Serial.println(ssid);
      // Connect to WPA/WPA2 network. Change this line if using open or WEP network:
      status = WiFi.begin(ssid, pass);
+     
 
      // wait 10 seconds for connection:
      delay(10000);
@@ -95,6 +105,9 @@ void setup() {
    server.begin();
    // you're connected now, so print out the status:
    printWifiStatus();
+   // put a heart in the LED matrix to indicate a successful connection to wifi
+
+   matrix.loadFrame(heart);
 
   /*
    * This is the initialization of the Multiplexer
@@ -140,6 +153,7 @@ void loop() {
   fill out the display
   then listen for client connection
   */
+  getTemps();
   // listen for incoming clients
   WiFiClient client = server.available();
   if (client) {
@@ -164,11 +178,32 @@ void loop() {
           client.println("<html>");
           // output the value of each analog input pin
           for (int analogChannel = 0; analogChannel < 6; analogChannel++) {
-            int sensorReading = analogRead(analogChannel);
-            client.print("analog input ");
-            client.print(analogChannel);
-            client.print(" is ");
-            client.print(sensorReading);
+            //int sensorReading = analogRead(analogChannel);
+            /*
+               int topBack = 0;
+                int topLeft = 0;
+                int topMiddle = 0;
+                int topRight = 0;
+                int topDeepMiddle = 0;
+                int topDeepRight = 0;
+                int surface = 0;
+                int baseDeep = 0;
+                int baseDeepLeft = 0;
+                int baseShallow = 0;
+                int attic = 0;
+                int flue = 0;
+            */
+            client.print("Top Back ");
+            client.print(topBack);
+            client.println("<br />");
+            client.print("Top Left ");
+            client.print(topLeft);
+            client.println("<br />");
+            client.print("Top Middlet ");
+            client.print(topMiddle);
+            client.println("<br />");
+            client.print("Top Right ");
+            client.print(topRight);
             client.println("<br />");
           }
           client.println("</html>");
@@ -191,18 +226,71 @@ void loop() {
     Serial.println("client disconnected");
   }
 }
-void getTemp(){
-  //Loop through and read all 16 values
+void getTemps(){
+  //Loop through and read all 12 values
   for(int i = 0; i < thermoCount; i ++){
     Serial.print("Channel ");
     Serial.println(i);
     setMux(i);
     delay(1000);  // Allows the multiplexer to settle for a millisecond before reading.
-     Serial.print("Fahrenheit = ");
-     //Serial.println(thermocouple.readInternal());
-     
-     currentTemp = round(thermocouple.readFahrenheit());
-     Serial.println(currentTemp);
+    //Readd the real time clock and serial print the time
+
+   // add thuis later
+
+    if (i==0){
+      topBack = round(thermocouple.readFahrenheit());
+      delay(1000);
+      Serial.print("topBack = ");
+      Serial.println(topBack);
+    } else if (i==1){
+      topLeft = round(thermocouple.readFahrenheit());
+      delay(1000);
+      Serial.print("topLeft = ");
+      Serial.println(topLeft);
+    } else if (i==2){
+       topMiddle = round(thermocouple.readFahrenheit());
+       delay(1000);
+       Serial.print("topMiddle = ");
+       Serial.println(topMiddle);
+    }else if (i==3){
+      topRight = round(thermocouple.readFahrenheit());
+      delay(1000);
+      Serial.print("topRight = ");
+      Serial.println(topRight);
+    } else if (i==4){
+      topDeepMiddle = round(thermocouple.readFahrenheit());
+      Serial.print("topDeepMiddle = ");
+      Serial.println(topDeepMiddle);
+    } else if (i==5){
+      topDeepRight = round(thermocouple.readFahrenheit());
+      Serial.print("topDeepRight = ");
+      Serial.println(topDeepRight);
+    } else if (i==6){
+      surface = round(thermocouple.readFahrenheit());
+      Serial.print("Surface = ");
+      Serial.println(surface);
+    } else if (i==7){
+      baseDeep = round(thermocouple.readFahrenheit());
+      Serial.print("baseDeep = ");
+      Serial.println(baseDeep);
+    } else if (i==8){
+      baseShallow = round(thermocouple.readFahrenheit());
+      Serial.print("baseShallow = ");
+      Serial.println(baseShallow);
+    } else if (i==9){
+      baseDeepLeft = round(thermocouple.readFahrenheit());
+      Serial.print("baseDeepLeft = ");
+      Serial.println(baseDeepLeft);
+    } else if (i==10){
+      attic = round(thermocouple.readFahrenheit());
+      Serial.print("attic = ");
+      Serial.println(attic);
+    } else if (i==11){
+      flue = round(thermocouple.readFahrenheit());
+      Serial.print("flue = ");
+      Serial.println(flue);
+    }
+
     double c = thermocouple.readCelsius();
     if (isnan(c)) {
      Serial.println("Thermocouple fault(s) detected!");
@@ -211,33 +299,32 @@ void getTemp(){
      if (e & MAX31855_FAULT_SHORT_GND) Serial.println("FAULT: Thermocouple is short-circuited to GND.");
      if (e & MAX31855_FAULT_SHORT_VCC) Serial.println("FAULT: Thermocouple is short-circuited to VCC.");
     } else {
-     Serial.print("C = ");
-     Serial.println(c);
+   
      
      if (i == 0){
        Serial.println("inside i equals 0");
      lcd.setCursor(3,0);
-     lcd.print("Dome Top");
+     lcd.print("Top Back");
      lcd.setCursor(12,0);
      lcd.print("     ");
      lcd.setCursor(12,0);
-     lcd.print(currentTemp);
+     lcd.print(topBack);
     } else if (i == 1){
       Serial.println("inside i equals 1");
      lcd.setCursor(1,1);
-     lcd.print("Dome Middle");
+     lcd.print("Dome Left");
      lcd.setCursor(13,1);
      lcd.print("     ");
     lcd.setCursor(13,1);
-     lcd.print(currentTemp);
+     lcd.print(topLeft);
     } else if (i == 2){
      Serial.println("inside i equals 2");
      lcd.setCursor(1,2);
-     lcd.print("Dome Front");
+     lcd.print("Dome Middle");
      lcd.setCursor(13,2);
      lcd.print("     ");
      lcd.setCursor(13,2);
-     lcd.print(currentTemp);
+     lcd.print(topMiddle);
     } else if (i == 3){
       Serial.println("inside display to second LCD");
       lcd2.setCursor(1, 1);
@@ -277,7 +364,8 @@ float setMux(int channel){
   //loop through the 4 sig
   for(int i = 0; i < 4; i ++){
     digitalWrite(controlPin[i], muxChannel[channel][i]);
-    //Serial.println("inside the channel change");
+    Serial.print("inside the channel change.  MUX is: ");
+    Serial.println(muxChannel[channel][i]);
     //delay(1000);
   }
 }
