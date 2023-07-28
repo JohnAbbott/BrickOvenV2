@@ -17,6 +17,9 @@
 #include "Adafruit_MAX31855.h"
 #include "Arduino_LED_Matrix.h"
 #include "frames.h"
+#include <SD.h>
+#include "RTC.h"
+#include <WiFiUdp.h>
 
 #include "pussy_secrets.h" 
 ///////Use the info in tab/arduino_secrets.h to login to the network Pussy_Galore
@@ -54,14 +57,64 @@ int topBack;
 int topLeft;
 int topMiddle;
 int topRight;
-int topDeepMiddle = 0;
-int topDeepRight = 0;
-int surface = 0;
-int baseDeep = 0;
-int baseDeepLeft = 0;
-int baseShallow = 0;
-int attic = 0;
-int flue = 0;
+int topDeepMiddle;
+int topDeepRight;
+int surface;
+int baseDeep;
+int baseDeepLeft;
+int baseShallow;
+int attic;
+int flue;
+
+// For the SD card
+const int chipSelect = 4;
+
+// UDP setup to talk to the NTP server
+
+constexpr unsigned int LOCAL_PORT = 2390;      // local port to listen for UDP packets
+constexpr int NTP_PACKET_SIZE = 48; // NTP timestamp is in the first 48 bytes of the message
+
+
+int wifiStatus = WL_IDLE_STATUS;
+IPAddress timeServer(162, 159, 200, 123); // pool.ntp.org NTP server
+byte packetBuffer[NTP_PACKET_SIZE]; //buffer to hold incoming and outgoing packets
+WiFiUDP Udp; // A UDP instance to let us send and receive packets over UDP
+/**
+ * Calculates the current unix time, that is the time in seconds since Jan 1 1970.
+ * It will try to get the time from the NTP server up to `maxTries` times,
+ * then convert it to Unix time and return it.
+ * You can optionally specify a time zone offset in hours that can be positive or negative.
+*/
+unsigned long getUnixTime(int8_t timeZoneOffsetHours = 0, uint8_t maxTries = 5){
+  // Try up to `maxTries` times to get a timestamp from the NTP server, then give up.
+  for (size_t i = 0; i < maxTries; i++){
+    sendNTPpacket(timeServer); // send an NTP packet to a time server
+    // wait to see if a reply is available
+    delay(1000);
+
+    if (Udp.parsePacket()) {
+      Serial.println("packet received");
+      Udp.read(packetBuffer, NTP_PACKET_SIZE); // read the packet into the buffer
+
+      //the timestamp starts at byte 40 of the received packet and is four bytes,
+      //or two words, long. First, extract the two words:
+      unsigned long highWord = word(packetBuffer[40], packetBuffer[41]);
+      unsigned long lowWord = word(packetBuffer[42], packetBuffer[43]);
+      
+      // Combine the four bytes (two words) into a long integer
+      // this is NTP time (seconds since Jan 1 1900):
+      unsigned long secsSince1900 = highWord << 16 | lowWord;
+
+      // Now convert NTP time into everyday time:
+      // Unix time starts on Jan 1 1970. In seconds, that's 2208988800:
+      const unsigned long seventyYears = 2208988800UL;
+      unsigned long secondsSince1970 = secsSince1900 - seventyYears + (timeZoneOffsetHours * 3600);
+      return secondsSince1970;
+    }
+  }
+
+  return 0;
+}
 
 void setup() {
   /*
@@ -72,7 +125,7 @@ void setup() {
    Serial.begin(9600);
    matrix.begin();
 
-   Serial.print("Initializing sensor...");
+   Serial.println("Initializing serial communication...");
    while (!Serial) {
     ; // wait for serial port to connect. Needed for native USB port only
    }
@@ -112,7 +165,7 @@ void setup() {
   /*
    * This is the initialization of the Multiplexer
    */
-   Serial.print("Initializing MUX...");
+   Serial.println("Initializing MUX...");
    pinMode(s0, OUTPUT); 
    pinMode(s1, OUTPUT); 
    pinMode(s2, OUTPUT); 
@@ -126,7 +179,7 @@ void setup() {
   /*
    * Initalization of the LCD displays
    */
-   Serial.print("Initializing LCD");
+   Serial.println("Initializing LCD");
    lcd.init();                      // initialize the lcd 
    lcd.init();
    lcd.backlight();
@@ -138,11 +191,39 @@ void setup() {
   /*
    * Intialize the Thermocouple Amplifier
    */
-   Serial.print("Initializing Thermocouple Amplifier");
+   Serial.println("Initializing Thermocouple Amplifier");
    if (!thermocouple.begin()) {
      Serial.println("ERROR.");
      while (1) delay(10);
    }
+
+     Serial.println("Initializing SD Datalogger.");
+    // see if the card is present and can be initialized:
+  if (!SD.begin(chipSelect)) {
+    Serial.println("Card failed, or not present");
+    // Turn this back on to require a card and logging.  With it off it notifies and moves on.
+    // while (1)  
+    delay(10);
+  }
+  Serial.println("SD card initialized.");
+
+  Udp.begin(LOCAL_PORT);
+  RTC.begin();
+
+  // Get the current date and time from an NTP server and convert
+  // it to UTC +2 by passing the time zone offset in hours.
+  // You may change the time zone offset to your local one.
+  auto unixTime = getUnixTime(2);
+  Serial.print("Unix time = ");
+  Serial.println(unixTime);
+  RTCTime timeToSet = RTCTime(unixTime);
+  RTC.setTime(timeToSet);
+
+  // Retrieve the date and time from the RTC and print them
+  RTCTime currentTime;
+  RTC.getTime(currentTime); 
+  Serial.println("The RTC was just set to: " + String(currentTime));
+
 }
 
 
@@ -302,29 +383,29 @@ void getTemps(){
    
      
      if (i == 0){
-       Serial.println("inside i equals 0");
-     lcd.setCursor(3,0);
-     lcd.print("Top Back");
-     lcd.setCursor(12,0);
-     lcd.print("     ");
-     lcd.setCursor(12,0);
-     lcd.print(topBack);
+      Serial.println("inside i equals 0");
+      lcd.setCursor(3,0);
+      lcd.print("Top Back");
+      lcd.setCursor(12,0);
+      lcd.print("     ");
+      lcd.setCursor(12,0);
+      lcd.print(topBack);
     } else if (i == 1){
       Serial.println("inside i equals 1");
-     lcd.setCursor(1,1);
-     lcd.print("Dome Left");
-     lcd.setCursor(13,1);
-     lcd.print("     ");
-    lcd.setCursor(13,1);
-     lcd.print(topLeft);
+      lcd.setCursor(1,1);
+      lcd.print("Dome Left");
+      lcd.setCursor(13,1);
+      lcd.print("     ");
+      lcd.setCursor(13,1);
+      lcd.print(topLeft);
     } else if (i == 2){
-     Serial.println("inside i equals 2");
-     lcd.setCursor(1,2);
-     lcd.print("Dome Middle");
-     lcd.setCursor(13,2);
-     lcd.print("     ");
-     lcd.setCursor(13,2);
-     lcd.print(topMiddle);
+      Serial.println("inside i equals 2");
+      lcd.setCursor(1,2);
+      lcd.print("Dome Middle");
+      lcd.setCursor(13,2);
+      lcd.print("     ");
+      lcd.setCursor(13,2);
+      lcd.print(topMiddle);
     } else if (i == 3){
       Serial.println("inside display to second LCD");
       lcd2.setCursor(1, 1);
@@ -386,3 +467,29 @@ void printWifiStatus() {
   Serial.print(rssi);
   Serial.println(" dBm");
 }
+
+unsigned long sendNTPpacket(IPAddress& address) {
+  // set all bytes in the buffer to 0
+  memset(packetBuffer, 0, NTP_PACKET_SIZE);
+  // Initialize values needed to form NTP request
+  // (see URL above for details on the packets)
+  packetBuffer[0] = 0b11100011;   // LI, Version, Mode
+  packetBuffer[1] = 0;     // Stratum, or type of clock
+  packetBuffer[2] = 6;     // Polling Interval
+  packetBuffer[3] = 0xEC;  // Peer Clock Precision
+  // 8 bytes of zero for Root Delay & Root Dispersion
+  packetBuffer[12]  = 49;
+  packetBuffer[13]  = 0x4E;
+  packetBuffer[14]  = 49;
+  packetBuffer[15]  = 52;
+
+  // all NTP fields have been given values, now
+  // you can send a packet requesting a timestamp:
+  Udp.beginPacket(address, 123); //NTP requests are to port 123
+  Udp.write(packetBuffer, NTP_PACKET_SIZE);
+  Udp.endPacket();
+}
+
+
+
+
