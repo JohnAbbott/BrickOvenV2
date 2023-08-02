@@ -29,6 +29,9 @@ int keyIndex = 0;
 
 int status = WL_IDLE_STATUS;
 
+// change to 1 to get more debug info in the serial out.
+int debug = 1;
+
 WiFiServer server(80);
 
 ArduinoLEDMatrix matrix;
@@ -311,13 +314,27 @@ void getTemps(){
   //Loop through and read all 12 values
   String dataString = "";
    //Log the data
+    RTCTime currentTime;
     RTC.getTime(currentTime); 
     Serial.println("The current time is: " + String(currentTime));
-    dataString = String(currentTime);
+    dataString = String(Month2int(currentTime.getMonth()));
+    dataString += "/";
+    dataString += currentTime.getDayOfMonth();
+    dataString += "/";
+    dataString += currentTime.getYear();
+    dataString += ",";
+    dataString += currentTime.getHour();
+    dataString += ":";
+    dataString += currentTime.getMinutes();
+    dataString += ":";
+    dataString += currentTime.getSeconds();
+    dataString += ",";
 
   for(int i = 0; i < thermoCount; i ++){
-    Serial.print("Channel ");
-    Serial.println(i);
+    if (debug == 1){
+      Serial.print("Channel ");
+      Serial.println(i);
+    }
     setMux(i);
     delay(1000);  // Allows the multiplexer to settle for a millisecond before reading.
     //Readd the real time clock and serial print the time
@@ -411,7 +428,9 @@ void getTemps(){
    
      
      if (i == 0){
-      Serial.println("inside i equals 0");
+       if (debug == 1){
+        Serial.println("inside i equals 0");
+       }
       lcd.setCursor(3,0);
       lcd.print("Top Back");
       lcd.setCursor(12,0);
@@ -419,7 +438,9 @@ void getTemps(){
       lcd.setCursor(12,0);
       lcd.print(topBack);
     } else if (i == 1){
-      Serial.println("inside i equals 1");
+      if (debug == 1){
+        Serial.println("inside i equals 1");
+      }
       lcd.setCursor(1,1);
       lcd.print("Dome Left");
       lcd.setCursor(13,1);
@@ -427,7 +448,9 @@ void getTemps(){
       lcd.setCursor(13,1);
       lcd.print(topLeft);
     } else if (i == 2){
-      Serial.println("inside i equals 2");
+      if (debug == 1){
+        Serial.println("inside i equals 2");
+      }
       lcd.setCursor(1,2);
       lcd.print("Dome Middle");
       lcd.setCursor(13,2);
@@ -435,7 +458,9 @@ void getTemps(){
       lcd.setCursor(13,2);
       lcd.print(topMiddle);
     } else if (i == 3){
-      Serial.println("inside display to second LCD");
+      if (debug == 1){
+        Serial.println("inside display to second LCD");
+      }
       lcd2.setCursor(1, 1);
       lcd2.print("hello");
     }
@@ -451,6 +476,7 @@ void getTemps(){
     dataFile.println(dataString);
     dataFile.close();
     // print to the serial port too:
+    Serial.print("Written to Oven Log: ");
     Serial.println(dataString);
   }
   // if the file isn't open, pop up an error:
@@ -460,7 +486,9 @@ void getTemps(){
 }
 
 float setMux(int channel){
- // Serial.println("Inside Read MUX");
+  if (debug == 1){
+    Serial.println("Inside Read MUX");
+  }
   int controlPin[] = {s0, s1, s2, s3};
 
   int muxChannel[16][4]={
@@ -485,8 +513,10 @@ float setMux(int channel){
   //loop through the 4 sig
   for(int i = 0; i < 4; i ++){
     digitalWrite(controlPin[i], muxChannel[channel][i]);
-    Serial.print("inside the channel change.  MUX is: ");
-    Serial.println(muxChannel[channel][i]);
+    if (debug == 1){
+      Serial.print("inside the channel change.  MUX is: ");
+      Serial.println(muxChannel[channel][i]);
+    }
     //delay(1000);
   }
 }
@@ -529,3 +559,7 @@ unsigned long sendNTPpacket(IPAddress& address) {
   Udp.write(packetBuffer, NTP_PACKET_SIZE);
   Udp.endPacket();
 }
+
+
+
+
