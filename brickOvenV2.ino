@@ -6,7 +6,7 @@
  * Version 1.0 -- Nov 2022
  * Version 1.1 -- May 2023 - Addition of Blynk code
  * Version 2.0 -- July 2023 - Abandon Blynk, just use a web server instead.
- * Version 2.1 -- July (late) 2023 -- Added a data logging card
+ * Version 2.1 -- July (late) 2023 -- Added a data logging card and RTC
  */
 
 
@@ -67,7 +67,7 @@ int attic;
 int flue;
 
 // For the SD card
-const int chipSelect = 4;
+const int chipSelect = 10;
 
 // UDP setup to talk to the NTP server
 
@@ -202,7 +202,7 @@ void setup() {
   if (!SD.begin(chipSelect)) {
     Serial.println("Card failed, or not present");
     // Turn this back on to require a card and logging.  With it off it notifies and moves on.
-    // while (1)  
+    while (1)  
     delay(10);
   }
   Serial.println("SD card initialized.");
@@ -309,6 +309,12 @@ void loop() {
 }
 void getTemps(){
   //Loop through and read all 12 values
+  String dataString = "";
+   //Log the data
+    RTC.getTime(currentTime); 
+    Serial.println("The current time is: " + String(currentTime));
+    dataString = String(currentTime);
+
   for(int i = 0; i < thermoCount; i ++){
     Serial.print("Channel ");
     Serial.println(i);
@@ -316,60 +322,82 @@ void getTemps(){
     delay(1000);  // Allows the multiplexer to settle for a millisecond before reading.
     //Readd the real time clock and serial print the time
 
-   // add thuis later
-
     if (i==0){
       topBack = round(thermocouple.readFahrenheit());
       delay(1000);
       Serial.print("topBack = ");
       Serial.println(topBack);
+      dataString += ",";
+      dataString += String(topBack);
     } else if (i==1){
       topLeft = round(thermocouple.readFahrenheit());
       delay(1000);
       Serial.print("topLeft = ");
       Serial.println(topLeft);
+      dataString += ",";
+      dataString += String(topLeft);
     } else if (i==2){
-       topMiddle = round(thermocouple.readFahrenheit());
-       delay(1000);
-       Serial.print("topMiddle = ");
-       Serial.println(topMiddle);
+      topMiddle = round(thermocouple.readFahrenheit());
+      delay(1000);
+      Serial.print("topMiddle = ");
+      Serial.println(topMiddle);
+      dataString += ",";
+      dataString += String(topMiddle);
     }else if (i==3){
       topRight = round(thermocouple.readFahrenheit());
       delay(1000);
       Serial.print("topRight = ");
       Serial.println(topRight);
+      dataString += ",";
+      dataString += String(topRight);
     } else if (i==4){
       topDeepMiddle = round(thermocouple.readFahrenheit());
       Serial.print("topDeepMiddle = ");
       Serial.println(topDeepMiddle);
+      dataString += ",";
+      dataString += String(topDeepMiddle);
     } else if (i==5){
       topDeepRight = round(thermocouple.readFahrenheit());
       Serial.print("topDeepRight = ");
       Serial.println(topDeepRight);
+      dataString += ",";
+      dataString += String(topDeepRight);
     } else if (i==6){
       surface = round(thermocouple.readFahrenheit());
       Serial.print("Surface = ");
       Serial.println(surface);
+      dataString += ",";
+      dataString += String(surface);
     } else if (i==7){
       baseDeep = round(thermocouple.readFahrenheit());
       Serial.print("baseDeep = ");
       Serial.println(baseDeep);
+      dataString += ",";
+      dataString += String(baseDeep);
     } else if (i==8){
       baseShallow = round(thermocouple.readFahrenheit());
       Serial.print("baseShallow = ");
       Serial.println(baseShallow);
+      dataString += ",";
+      dataString += String(baseDeepLeft);
     } else if (i==9){
       baseDeepLeft = round(thermocouple.readFahrenheit());
       Serial.print("baseDeepLeft = ");
       Serial.println(baseDeepLeft);
+      dataString += ",";
+      dataString += String(baseShallow);
     } else if (i==10){
       attic = round(thermocouple.readFahrenheit());
       Serial.print("attic = ");
       Serial.println(attic);
+      dataString += ",";
+      dataString += String(attic);
     } else if (i==11){
       flue = round(thermocouple.readFahrenheit());
       Serial.print("flue = ");
       Serial.println(flue);
+      dataString += ",";
+      dataString += String(flue);
     }
 
     double c = thermocouple.readCelsius();
@@ -416,7 +444,19 @@ void getTemps(){
 
     //delay(1000);
   }
+  File dataFile = SD.open("ovenlog.txt", FILE_WRITE);
 
+  // if the file is available, write to it:
+  if (dataFile) {
+    dataFile.println(dataString);
+    dataFile.close();
+    // print to the serial port too:
+    Serial.println(dataString);
+  }
+  // if the file isn't open, pop up an error:
+  else {
+    Serial.println("error opening ovenlog.txt");
+  }
 }
 
 float setMux(int channel){
@@ -489,7 +529,3 @@ unsigned long sendNTPpacket(IPAddress& address) {
   Udp.write(packetBuffer, NTP_PACKET_SIZE);
   Udp.endPacket();
 }
-
-
-
-
