@@ -31,6 +31,8 @@ int status = WL_IDLE_STATUS;
 
 // change to 1 to get more debug info in the serial out.
 int debug = 1;
+//put the number of thermo couples we are reading.  Lower this number for testing just a couple.
+int thermoCount = 12;  
 
 WiFiServer server(80);
 
@@ -52,9 +54,6 @@ int s0 = 4;
 int s1 = 5;
 int s2 = 6;
 int s3 = 7;
-
-//int currentTemp;  // this holds the temp gotten in the thermocouple.readFahrenheit()
-int thermoCount = 4;  //put the number of thermo couples we are reading.  Lower this number for testing just a couple.
 
 int topBack;
 int topLeft;
@@ -312,11 +311,16 @@ void loop() {
 }
 void getTemps(){
   //Loop through and read all 12 values
+  int logData = 0; 
   String dataString = "";
    //Log the data
     RTCTime currentTime;
     RTC.getTime(currentTime); 
     Serial.println("The current time is: " + String(currentTime));
+    if ((currentTime.getSeconds() <= 10) & ((currentTime.getMinutes() % 5) == 0)){
+      logData = 1;
+      Serial.println("This pass through we are going to log the data!");
+    }
     dataString = String(Month2int(currentTime.getMonth()));
     dataString += "/";
     dataString += currentTime.getDayOfMonth();
@@ -328,7 +332,7 @@ void getTemps(){
     dataString += currentTime.getMinutes();
     dataString += ":";
     dataString += currentTime.getSeconds();
-    dataString += ",";
+    
 
   for(int i = 0; i < thermoCount; i ++){
     if (debug == 1){
@@ -346,6 +350,12 @@ void getTemps(){
       Serial.println(topBack);
       dataString += ",";
       dataString += String(topBack);
+      lcd.setCursor(0,0);
+      lcd.print("Dome Back");
+      lcd.setCursor(11,0);
+      lcd.print("    ");
+      lcd.setCursor(11,0);
+      lcd.print(topBack);
     } else if (i==1){
       topLeft = round(thermocouple.readFahrenheit());
       delay(1000);
@@ -353,6 +363,12 @@ void getTemps(){
       Serial.println(topLeft);
       dataString += ",";
       dataString += String(topLeft);
+      lcd.setCursor(0,1);
+      lcd.print("L");
+      lcd.setCursor(2,1);
+      lcd.print("   ");
+      lcd.setCursor(2,1);
+      lcd.print(topLeft);
     } else if (i==2){
       topMiddle = round(thermocouple.readFahrenheit());
       delay(1000);
@@ -360,6 +376,12 @@ void getTemps(){
       Serial.println(topMiddle);
       dataString += ",";
       dataString += String(topMiddle);
+      lcd.setCursor(7,1);
+      lcd.print("M");
+      lcd.setCursor(9,1);
+      lcd.print("   ");
+      lcd.setCursor(9,1);
+      lcd.print(topMiddle);
     }else if (i==3){
       topRight = round(thermocouple.readFahrenheit());
       delay(1000);
@@ -367,54 +389,111 @@ void getTemps(){
       Serial.println(topRight);
       dataString += ",";
       dataString += String(topRight);
+      lcd.setCursor(13,1);
+      lcd.print("R");
+      lcd.setCursor(15,1);
+      lcd.print("   ");
+      lcd.setCursor(15,1);
+      lcd.print(topRight);
     } else if (i==4){
       topDeepMiddle = round(thermocouple.readFahrenheit());
       Serial.print("topDeepMiddle = ");
       Serial.println(topDeepMiddle);
       dataString += ",";
       dataString += String(topDeepMiddle);
+      lcd.setCursor(0,2);
+      lcd.print("Deep Mid");
+      lcd.setCursor(9,2);
+      lcd.print("   ");
+      lcd.setCursor(9,2);
+      lcd.print(topDeepMiddle);
     } else if (i==5){
       topDeepRight = round(thermocouple.readFahrenheit());
       Serial.print("topDeepRight = ");
       Serial.println(topDeepRight);
       dataString += ",";
       dataString += String(topDeepRight);
+      lcd.setCursor(12,2);
+      lcd.print("Right");
+      lcd.setCursor(17,2);
+      lcd.print("   ");
+      lcd.setCursor(17,2);
+      lcd.print(topDeepRight);
     } else if (i==6){
       surface = round(thermocouple.readFahrenheit());
       Serial.print("Surface = ");
       Serial.println(surface);
       dataString += ",";
       dataString += String(surface);
+      lcd.setCursor(0,3);
+      lcd.print("Surface");
+      lcd.setCursor(9,3);
+      lcd.print("    ");
+      lcd.setCursor(9,3);
+      lcd.print(surface);
     } else if (i==7){
       baseDeep = round(thermocouple.readFahrenheit());
       Serial.print("baseDeep = ");
       Serial.println(baseDeep);
       dataString += ",";
       dataString += String(baseDeep);
+      lcd2.setCursor(0, 0);
+      lcd2.print("Base");
+      lcd2.setCursor(6, 0);
+      lcd2.print("    ");
+      lcd2.setCursor(6, 0);
+      lcd2.print(baseDeep);
     } else if (i==8){
       baseShallow = round(thermocouple.readFahrenheit());
       Serial.print("baseShallow = ");
       Serial.println(baseShallow);
       dataString += ",";
-      dataString += String(baseDeepLeft);
+      dataString += String(baseShallow);
+      lcd2.setCursor(0, 1);
+      lcd2.print("Shallow");
+      lcd2.setCursor(8, 1);
+      lcd2.print("    ");
+      lcd2.setCursor(8, 1);
+      lcd2.print(baseShallow);
     } else if (i==9){
       baseDeepLeft = round(thermocouple.readFahrenheit());
       Serial.print("baseDeepLeft = ");
       Serial.println(baseDeepLeft);
       dataString += ",";
       dataString += String(baseShallow);
+      lcd2.setCursor(12, 1);
+      lcd2.print("Deep");
+      lcd2.setCursor(17, 1);
+      lcd2.print("    ");
+      lcd2.setCursor(17, 1);
+      lcd2.print(baseShallow);
     } else if (i==10){
       attic = round(thermocouple.readFahrenheit());
       Serial.print("attic = ");
       Serial.println(attic);
       dataString += ",";
       dataString += String(attic);
+      lcd2.setCursor(0, 2);
+      lcd2.print("Attic");
+      lcd2.setCursor(7, 2);
+      lcd2.print("    ");
+      lcd2.setCursor(7, 2);
+      lcd2.print(attic);
     } else if (i==11){
       flue = round(thermocouple.readFahrenheit());
       Serial.print("flue = ");
       Serial.println(flue);
       dataString += ",";
       dataString += String(flue);
+      lcd2.setCursor(10, 2);
+      lcd2.print("Flue");
+      lcd2.setCursor(15, 2);
+      lcd2.print("    ");
+      lcd2.setCursor(15, 2);
+      lcd2.print(attic);
+      lcd2.setCursor(0, 3);
+      lcd2.print (String(currentTime));
+
     }
 
     double c = thermocouple.readCelsius();
@@ -424,64 +503,26 @@ void getTemps(){
      if (e & MAX31855_FAULT_OPEN) Serial.println("FAULT: Thermocouple is open - no connections.");
      if (e & MAX31855_FAULT_SHORT_GND) Serial.println("FAULT: Thermocouple is short-circuited to GND.");
      if (e & MAX31855_FAULT_SHORT_VCC) Serial.println("FAULT: Thermocouple is short-circuited to VCC.");
-    } else {
-   
-     
-     if (i == 0){
-       if (debug == 1){
-        Serial.println("inside i equals 0");
-       }
-      lcd.setCursor(3,0);
-      lcd.print("Top Back");
-      lcd.setCursor(12,0);
-      lcd.print("     ");
-      lcd.setCursor(12,0);
-      lcd.print(topBack);
-    } else if (i == 1){
-      if (debug == 1){
-        Serial.println("inside i equals 1");
-      }
-      lcd.setCursor(1,1);
-      lcd.print("Dome Left");
-      lcd.setCursor(13,1);
-      lcd.print("     ");
-      lcd.setCursor(13,1);
-      lcd.print(topLeft);
-    } else if (i == 2){
-      if (debug == 1){
-        Serial.println("inside i equals 2");
-      }
-      lcd.setCursor(1,2);
-      lcd.print("Dome Middle");
-      lcd.setCursor(13,2);
-      lcd.print("     ");
-      lcd.setCursor(13,2);
-      lcd.print(topMiddle);
-    } else if (i == 3){
-      if (debug == 1){
-        Serial.println("inside display to second LCD");
-      }
-      lcd2.setCursor(1, 1);
-      lcd2.print("hello");
-    }
-   
-   }
+    } 
 
     //delay(1000);
   }
-  File dataFile = SD.open("ovenlog.txt", FILE_WRITE);
+  if (logData == 1){
+    File dataFile = SD.open("ovenlog.txt", FILE_WRITE);
 
-  // if the file is available, write to it:
-  if (dataFile) {
-    dataFile.println(dataString);
-    dataFile.close();
-    // print to the serial port too:
-    Serial.print("Written to Oven Log: ");
-    Serial.println(dataString);
-  }
-  // if the file isn't open, pop up an error:
-  else {
-    Serial.println("error opening ovenlog.txt");
+    // if the file is available, write to it:
+    if (dataFile) {
+      dataFile.println(dataString);
+      dataFile.close();
+      // print to the serial port too:
+      Serial.print("Written to Oven Log: ");
+      Serial.println(dataString);
+    }
+    // if the file isn't open, pop up an error:
+    else {
+      Serial.println("error opening ovenlog.txt");
+    }
+    logData = 0;
   }
 }
 
@@ -559,7 +600,3 @@ unsigned long sendNTPpacket(IPAddress& address) {
   Udp.write(packetBuffer, NTP_PACKET_SIZE);
   Udp.endPacket();
 }
-
-
-
-
