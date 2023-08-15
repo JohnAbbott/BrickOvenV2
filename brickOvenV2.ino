@@ -7,6 +7,8 @@
  * Version 1.1 -- May 2023 - Addition of Blynk code
  * Version 2.0 -- July 2023 - Abandon Blynk, just use a web server instead.
  * Version 2.1 -- July (late) 2023 -- Added a data logging card and RTC
+ * Version 2.2 -- August 2023 -- Added event buttons.
+ * Version 2.2.1 -- August 2023 -- Bug fix.  Flue temp was reporting attic.  Plus variable names not filled in on web page.
  */
 
 
@@ -29,8 +31,10 @@ int keyIndex = 0;
 
 int status = WL_IDLE_STATUS;
 
+const int buttonPin = 2;
+
 // change to 1 to get more debug info in the serial out.
-int debug = 1;
+int debug = 0;
 //put the number of thermo couples we are reading.  Lower this number for testing just a couple.
 int thermoCount = 12;  
 
@@ -70,6 +74,12 @@ int flue;
 
 // For the SD card
 const int chipSelect = 10;
+/*
+CS – digital 10; this can be in principle any pin
+SCK – digital 13
+MOSI – digital 11
+MISO – digital 12
+*/
 
 // UDP setup to talk to the NTP server
 
@@ -87,7 +97,7 @@ WiFiUDP Udp; // A UDP instance to let us send and receive packets over UDP
  * then convert it to Unix time and return it.
  * You can optionally specify a time zone offset in hours that can be positive or negative.
 */
-unsigned long getUnixTime(int8_t timeZoneOffsetHours = 0, uint8_t maxTries = 5){
+unsigned long getUnixTime(int8_t timeZoneOffsetHours = -5, uint8_t maxTries = 5){
   // Try up to `maxTries` times to get a timestamp from the NTP server, then give up.
   for (size_t i = 0; i < maxTries; i++){
     sendNTPpacket(timeServer); // send an NTP packet to a time server
@@ -132,6 +142,9 @@ void setup() {
     ; // wait for serial port to connect. Needed for native USB port only
    }
    
+   // initialize the button pin as a input:
+   pinMode(buttonPin, INPUT);
+
    // check for the WiFi module:
    if (WiFi.status() == WL_NO_MODULE) {
      Serial.println("Communication with WiFi module failed!");
@@ -282,11 +295,35 @@ void loop() {
             client.print("Top Left ");
             client.print(topLeft);
             client.println("<br />");
-            client.print("Top Middlet ");
+            client.print("Top Middle ");
             client.print(topMiddle);
             client.println("<br />");
             client.print("Top Right ");
             client.print(topRight);
+            client.println("<br />");
+            client.print("Top Deep Middle ");
+            client.print(topDeepMiddle);
+            client.println("<br />");
+            client.print("Top Deep Right ");
+            client.print(topDeepRight);
+            client.println("<br />");
+            client.print("Top Surface ");
+            client.print(surface);
+            client.println("<br />");
+            client.print("Base Deep");
+            client.print(baseDeep);
+            client.println("<br />");
+            client.print("Base Deep Left ");
+            client.print(baseDeepLeft);
+            client.println("<br />");
+            client.print("Base Shallow ");
+            client.print(baseShallow);
+            client.println("<br />");
+            client.print("Attic ");
+            client.print(attic);
+            client.println("<br />");
+            client.print("Flue ");
+            client.print(flue);
             client.println("<br />");
           }
           client.println("</html>");
@@ -490,7 +527,7 @@ void getTemps(){
       lcd2.setCursor(15, 2);
       lcd2.print("    ");
       lcd2.setCursor(15, 2);
-      lcd2.print(attic);
+      lcd2.print(flue);
       lcd2.setCursor(0, 3);
       lcd2.print (String(currentTime));
 
@@ -600,3 +637,7 @@ unsigned long sendNTPpacket(IPAddress& address) {
   Udp.write(packetBuffer, NTP_PACKET_SIZE);
   Udp.endPacket();
 }
+
+
+
+
